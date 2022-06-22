@@ -16,7 +16,8 @@
       </label>
 
       <ul>
-        <li class="cursor-pointer hover:bg-gray-100" v-for="note in notes" :key="note.time" @click="selectedDate = note.time; changeDate(); title = note.note;">
+        <li class="cursor-pointer hover:bg-gray-100" v-for="note in notes" :key="note.time"
+          @click="selectedDate = note.time; changeDate(); title = note.note;">
           <strong>{{ note.time }}</strong>: {{ note.note }}
         </li>
       </ul>
@@ -29,14 +30,13 @@
 
       <label class="block">
         <span class="block text-sm font-medium text-slate-700">Select start date/time:</span>
-        <select v-model="selectedDate"
-          @change="changeDate()"
+        <select v-model="selectedDate" @change="changeDate()"
           class="border rounded border-slate-400 placeholder-slate-400 contrast-more:border-slate-400 contrast-more:placeholder-slate-500">
           <option v-for="date in dates" :key="date">
             {{ date }}
           </option>
         </select>
-      </label>          {{ selectedDate }}
+      </label> {{ selectedDate }}
     </form>
 
     <div style="width: 512px;" class="p-16">
@@ -68,9 +68,9 @@ import format from 'date-fns/format'
 Chart.register(annotationPlugin);
 
 function pad(num, size) {
-    num = num.toString();
-    while (num.length < size) num = "0" + num;
-    return num;
+  num = num.toString();
+  while (num.length < size) num = "0" + num;
+  return num;
 }
 
 export default {
@@ -98,51 +98,66 @@ export default {
     },
 
     parseFile() {
-      Papa.parse(this.file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function (results) {
-          this.content = results;
-          this.parsed = true;
 
-          const sortedData = results.data.sort((a, b) => {
-            return parse(a["Device Timestamp"], 'dd-MM-yyyy H:mm', new Date) - parse(b["Device Timestamp"], 'dd-MM-yyyy H:mm', new Date)
-          })
+      const reader = new FileReader();
+      if (this.file.name.includes(".csv")) {
+        reader.onload = (res) => {
+          let content = res.target.result;
 
-          console.log(sortedData);
+          // remove first line
+          content = content.substring(content.indexOf("\n") + 1)
 
-          var data = [];
-          var notes = [];
-          sortedData.forEach(item => {
-            if (item['Historic Glucose mmol/L'])
-              data.push({ time: item['Device Timestamp'], y: item['Historic Glucose mmol/L'] * 18, });
-            if (item['Scan Glucose mmol/L'])
-              data.push({ time: item['Device Timestamp'], y: item['Scan Glucose mmol/L'] * 18, });
-            if (item['Notes'])
-              notes.push({ time: item['Device Timestamp'], note: item['Notes'], });
+          Papa.parse(content, {
+            header: true,
+            skipEmptyLines: true,
+            complete: function (results) {
+              this.content = results;
+              this.parsed = true;
+
+              const sortedData = results.data.sort((a, b) => {
+                return parse(a["Device Timestamp"], 'dd-MM-yyyy H:mm', new Date) - parse(b["Device Timestamp"], 'dd-MM-yyyy H:mm', new Date)
+              })
+
+              console.log(sortedData);
+
+              var data = [];
+              var notes = [];
+              sortedData.forEach(item => {
+                if (item['Historic Glucose mmol/L'])
+                  data.push({ time: item['Device Timestamp'], y: item['Historic Glucose mmol/L'] * 18, });
+                if (item['Scan Glucose mmol/L'])
+                  data.push({ time: item['Device Timestamp'], y: item['Scan Glucose mmol/L'] * 18, });
+                if (item['Notes'])
+                  notes.push({ time: item['Device Timestamp'], note: item['Notes'], });
+              });
+
+              this.dataset = data;
+              this.notes = notes;
+
+              var dates = this.dataset.map(el => el.time);
+              dates = new Set(dates);
+              this.dates = dates;
+
+              console.log(this.dataset)
+            }.bind(this)
           });
 
-          this.dataset = data;
-          this.notes = notes;
+        };
+        reader.onerror = (err) => console.log(err);
+        reader.readAsText(this.file);
+      }
 
-          var dates = this.dataset.map(el => el.time);
-          dates = new Set(dates);
-          this.dates = dates;
-
-          console.log(this.dataset)
-        }.bind(this)
-      });
     },
 
-    changeDate(){
+    changeDate() {
       console.log('changeDate()');
       var referenceDate = parse(this.selectedDate, 'dd-MM-yyyy H:mm', new Date)
       var startDate = subHours(parse(this.selectedDate, 'dd-MM-yyyy H:mm', new Date), 1)
       var endDate = addHours(parse(this.selectedDate, 'dd-MM-yyyy H:mm', new Date), 4)
-      var subset = this.dataset.filter(function(item){
+      var subset = this.dataset.filter(function (item) {
         var date = parse(item['time'], 'dd-MM-yyyy H:mm', new Date)
 
-        if(!isAfter(date, endDate) && !isBefore(date, startDate)){
+        if (!isAfter(date, endDate) && !isBefore(date, startDate)) {
           return true;
         }
 
@@ -150,7 +165,7 @@ export default {
       });
 
       console.log(subset.length);
-      subset.map(function(item){
+      subset.map(function (item) {
         var date = parse(item['time'], 'dd-MM-yyyy H:mm', new Date)
         // item['x'] = (isAfter(date, referenceDate) ? '' : '-') + differenceInMinutes(date, referenceDate)
         item['x'] = format(date, "H:mm")
@@ -158,7 +173,7 @@ export default {
           start: startDate,
           end: date
         })
-        item['x'] = pad(inverval.hours, 2) + ":" + pad(inverval.minutes,2)
+        item['x'] = pad(inverval.hours, 2) + ":" + pad(inverval.minutes, 2)
       });
 
       console.log(subset);
@@ -268,16 +283,16 @@ export default {
                   borderWidth: 2,
                 },
                 label1: {
-                    type: 'label',
-                    position: 'start',
-                    content: ['Eating time'],
-                    xValue: "01:00",
-                    yValue: 160,
-                    backgroundColor: 'rgba(255, 99, 132)',
-                    color: 'rgba(255, 255, 255)',
-                    font: {
-                      size: 12
-                    }
+                  type: 'label',
+                  position: 'start',
+                  content: ['Eating time'],
+                  xValue: "01:00",
+                  yValue: 160,
+                  backgroundColor: 'rgba(255, 99, 132)',
+                  color: 'rgba(255, 255, 255)',
+                  font: {
+                    size: 12
+                  }
                 },
               }
             }
@@ -286,7 +301,7 @@ export default {
 
         plugins: [annotationPlugin]
 
-        });
+      });
     }
   },
 
